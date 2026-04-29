@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions        Session[]
+  company         CompanyProfile?
+  customers       Customer[]
+  quotes          Quote[]
+  invoices        Invoice[]
+  calculations    MaterialCalculation[]
+  numberSequences NumberSequence[]
+  itemTemplates   ItemTemplate[]
+  featureSuggestions FeatureSuggestion[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model CompanyProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  companyName        String
+  ownerName          String?
+  street             String?
+  postalCode         String?
+  city               String?
+  country            String   @default("Oesterreich")
+  email              String?
+  phone              String?
+  website            String?
+  vatId              String?
+  taxNumber          String?
+  bankName           String?
+  iban               String?
+  bic                String?
+  defaultPaymentDays Int      @default(14)
+  defaultTaxRate     Float    @default(20)
+  defaultTaxMode     String   @default("STANDARD")
+  brandColor         String   @default("#0f766e")
+  logoUrl            String?
+  logoDataUrl        String?
+  quotePrefix        String   @default("ANG")
+  invoicePrefix      String   @default("RE")
+  quoteIntroText     String?
+  quoteOutroText     String?
+  invoiceIntroText   String?
+  invoiceOutroText   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Customer {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  contactPerson String?
+  street        String?
+  postalCode    String?
+  city          String?
+  country       String   @default("Oesterreich")
+  email         String?
+  phone         String?
+  vatId         String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quotes   Quote[]
+  invoices Invoice[]
+
+  @@index([userId])
+}
+
+model Quote {
+  id               String    @id @default(cuid())
+  userId           String
+  customerId       String
+  number           String
+  status           String    @default("DRAFT")
+  taxMode          String    @default("STANDARD")
+  quoteDate        DateTime  @default(now())
+  validUntil       DateTime?
+  introText        String?
+  outroText        String?
+  note             String?
+  subtotalNetCents Int       @default(0)
+  taxTotalCents    Int       @default(0)
+  totalGrossCents  Int       @default(0)
+  lockedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id])
+  items    QuoteItem[]
+  invoices Invoice[]
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([customerId])
+}
+
+model QuoteItem {
+  id                String @id @default(cuid())
+  quoteId           String
+  description       String
+  quantity          Float  @default(1)
+  unit              String @default("Stk.")
+  unitPriceNetCents Int
+  taxRate           Float  @default(20)
+  materialCostCents Int?
+  laborHours        Float?
+  sortOrder         Int    @default(0)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+model Invoice {
+  id               String    @id @default(cuid())
+  userId           String
+  customerId       String
+  quoteId          String?
+  number           String
+  status           String    @default("DRAFT")
+  taxMode          String    @default("STANDARD")
+  invoiceDate      DateTime  @default(now())
+  serviceDate      DateTime?
+  servicePeriod    String?
+  dueDate          DateTime
+  introText        String?
+  outroText        String?
+  note             String?
+  subtotalNetCents Int       @default(0)
+  taxTotalCents    Int       @default(0)
+  totalGrossCents  Int       @default(0)
+  paidAt           DateTime?
+  lockedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer      @relation(fields: [customerId], references: [id])
+  quote    Quote?        @relation(fields: [quoteId], references: [id])
+  items    InvoiceItem[]
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([customerId])
+  @@index([quoteId])
+}
+
+model InvoiceItem {
+  id                String @id @default(cuid())
+  invoiceId         String
+  description       String
+  quantity          Float  @default(1)
+  unit              String @default("Stk.")
+  unitPriceNetCents Int
+  taxRate           Float  @default(20)
+  materialCostCents Int?
+  laborHours        Float?
+  sortOrder         Int    @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model MaterialCalculation {
+  id                String   @id @default(cuid())
+  userId            String
+  title             String
+  materialCostCents Int      @default(0)
+  markupPercent     Float    @default(0)
+  salePriceCents    Int      @default(0)
+  laborHours        Float    @default(0)
+  hourlyRateCents   Int      @default(0)
+  travelCostCents   Int      @default(0)
+  totalNetCents     Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model NumberSequence {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String
+  year       Int
+  prefix     String
+  nextNumber Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, year])
+  @@index([userId])
+}
+
+model ItemTemplate {
+  id                String   @id @default(cuid())
+  userId            String
+  kind              String   @default("SERVICE")
+  sku               String?
+  title             String
+  description       String
+  unit              String   @default("Stk.")
+  unitPriceNetCents Int      @default(0)
+  taxRate           Float    @default(20)
+  materialCostCents Int?
+  laborHours        Float?
+  notes             String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model FeatureSuggestion {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  area        String?
+  description String
+  status      String   @default("NEW")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
